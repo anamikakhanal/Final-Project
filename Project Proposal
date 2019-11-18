@@ -1,0 +1,12 @@
+Data description: For our final project we will be using the Bike Share dataset. This dataset contains 16 variables, 7 of which are categorical (season, year, month, holiday, weekday, working day and weather). The data is sampled once per day from Capital Bike Sharing, a bike-sharing app in Washington DC, for 703 days over a two year period from 2011-2012. We decided to compute three different regression models using total users, the number of registered users, and the number of casual users as our three different dependent variables. In our models, our independent variables to predict the number of users are the weather (four different temperature options), whether or not it is a working day, the normalized feeling temperature in Celsius, and wind speed. 
+
+
+Proposed Approach: 
+
+In-Class Method: Tree-Based Regression
+
+For our in-class method, we will be using regression trees to predict the number of users based on weather, working day, and normalized feeling temperature. This model is appropriate because our independent variables can easily be split into different groups since the variables are discrete. Additionally, it can help show any non-linear patterns in the data. 
+
+Out-of-Class Method: Poisson Regression
+
+For our out-of-class method, we will be using Poisson regression to predict the number of users based on weather, working day, and normalized feeling temperature. This model is appropriate because our dependent variable is a count and a Poisson distribution is used to model the number of occurrences (or counts) during a set time frame, i.e. one day in our case. 
