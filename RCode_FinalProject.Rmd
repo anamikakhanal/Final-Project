@@ -6,6 +6,26 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+```{r}
+library(readr)
+Data <- ("day.csv")
+
+#Checking for missing data
+sum(is.na(x$atemp))
+sum(is.na(x$weekday))
+sum(is.na(x$windspeed))
+
+From the three lines of codes above that there are no missing data for each variable that we are interested in. 
+
+#Initial Plots
+plot(final_data$cnt, final_data$weathersit)
+plot(final_data$workingday, final_data$cnt)
+plot(final_data$atemp, final_data$cnt)
+
+For the weather and the working day plots, we see that the plots are non-linear because these variables are categorical. For the atemp plot we see a positive linear relationship, which means as the temperature increases more people will go out biking.
+Based on the results from the plots, we see that a tree based regression using count as the dependent variable and weather, working day and atemp as our independent variables is appropriate because we can easily split the data. Since atemp is relatively linear, we will use the Gini coefficient to help split the data into separate regions recursively. 
+
+```
 
 ## R Markdown
 
