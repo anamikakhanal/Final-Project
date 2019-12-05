@@ -1,6 +1,7 @@
 ---
 title: "Final Project"
 author: "Stephanie Spitzer, Anamika Kakhanal, and Susan Khan"
+
 output: pdf_document
 ---
 
