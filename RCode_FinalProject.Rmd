@@ -1,27 +1,94 @@
 ---
-title: "RCode"
-output: html_document
+title: "Final Project"
+author: "Stephanie Spitzer, Anamika Kakhanal, and Susan Khan"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 ```{r}
 library(readr)
-Data <- ("day.csv")
+data<-read_csv("day.csv")
 ```
 
 #Checking for missing data
-sum(is.na(x$atemp))
-sum(is.na(x$weekday))
-sum(is.na(x$windspeed))
-
-From the three lines of codes above that there are no missing data for each variable that we are interested in. 
+```{r}
+sum(is.na(data$atemp))
+sum(is.na(data$weekday))
+sum(is.na(data$weathersit))
+```
+From the three lines of codes above, we see that for each variable we are interested in, there is no missing data. 
 
 #Initial Plots
-plot(final_data$cnt, final_data$weathersit)
-plot(final_data$workingday, final_data$cnt)
-plot(final_data$atemp, final_data$cnt)
+```{r}
+plot(data$weathersit, data$cnt)
+plot(data$workingday, data$cnt)
+plot(data$atemp, data$cnt)
+```
 
-For the weather and the working day plots, we see that the plots are non-linear because these variables are categorical. For the atemp plot we see a positive linear relationship, which means as the temperature increases more people will go out biking.
-Based on the results from the plots, we see that a tree based regression using count as the dependent variable and weather, working day and atemp as our independent variables is appropriate because we can easily split the data. Since atemp is relatively linear, we will use the Gini coefficient to help split the data into separate regions recursively. 
+For the weather and the working day plots, we see that the plots are non-linear because these variables are categorical. For the atemp plot, we see a positive linear relationship, which means as the temperature increases, more people will go out biking. Based on the results from the plots, we see that a tree-based regression using count as the dependent variable and weather, working day, and atemp as our independent variables is appropriate because we can easily split the data. Since atemp is relatively linear, we will use the Gini coefficient to help split the data into separate regions recursively. Additionally, there are four categories for the weather variable, but from the weather plot, we see that there are no days with category four weather (i.e., heavy rain, ice pallets, thunderstorms, mist, fog, or snow). Therefore, when conducting our analysis, we will only be using the other three weather categories. 
+
+#Relatively Advanced Method From Class (Tree-Based Regression)
+```{r}
+#Recursive Binary Splitting
+options(repr.plot.width=20,repr.plot.height=20)
+
+library(rpart)
+fit <- rpart(cnt~atemp + workingday + weathersit, method="anova", data=data)
+
+plot(fit, uniform=TRUE,
+   main="Regression Tree for Bike Rentals")
+text(fit, use.n=TRUE, all=TRUE, cex=0.9)
+```
+
+```{r}
+#Complexity Pruning
+N = length(data)
+K = 10
+ALPHAs= seq(0.25,0.01,-0.01)
+# split into K folds
+Kfolds = split(data,1:K)
+
+AllCVs = rep(0,length(ALPHAs))
+
+i=1
+for (ALPHA in ALPHAs){
+    MSEs = rep(0,K)
+    for(k in 1:K){
+        trainingIndices = setdiff(1:K,k)    
+        trainingData = do.call(rbind,Kfolds[trainingIndices])
+        testingData  = Kfolds[[k]] 
+
+        BigTree <- rpart(cnt~atemp + workingday + weathersit, method="anova", data=trainingData)
+        smallerTree = prune(BigTree, cp = ALPHA)
+
+        predictions = predict(smallerTree, testingData)
+        MSEs[k] = t(testingData$cnt - predictions)%*%(testingData$cnt - predictions)
+    }
+    AllCVs[i] = mean(MSEs)
+    i=i+1
+}
+
+plot(ALPHAs,AllCVs, xlim=c(0.25,0.01) )
+lines(ALPHAs,AllCVs)
+table(ALPHAs, AllCVs)
+
+#Pruned Tree
+pfit<- prune(fit, cp=0.01) # from cptable   
+
+# plot the pruned tree
+plot(pfit, uniform=TRUE,
+   main="Pruned Regression Tree for Bike Rentals")
+text(pfit, use.n=TRUE, all=TRUE, cex=.8)
+```
+
+```{r}
+#Gini Coefficient
+predictedProbs = predict(fit,data)
+classes=ifelse(predictedProbs>0.50,1,0)
+
+GINI = mean(classes)*(1-mean(classes))
+GINI
+```
