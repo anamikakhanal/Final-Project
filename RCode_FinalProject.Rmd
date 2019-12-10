@@ -23,9 +23,11 @@ From the three lines of codes above, we see that for each variable we are intere
 
 #Initial Plots
 ```{r}
-plot(data$weathersit, data$cnt)
-plot(data$workingday, data$cnt)
-plot(data$atemp, data$cnt)
+par(mfrow = c(1,2))
+boxplot(cnt ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Bike Rentals", main = "Box Plot of Weather \n vs. Total Bike Rentals")
+boxplot(cnt ~ workingday, data = data, xlab = "Workingday", ylab = "Total Bike Rentals", main = "Box Plot of Workingday \n vs. Total Bike Rentals")
+par(mfrow = c(1,1))
+plot(data$atemp, data$cnt, xlab = "Normalized Feeling Temperature", ylab = "Total Bike Rentals", main = "Scatter Plot of Normalized Feeling Temperature \n vs. Total Bike Rentals")
 ```
 
 For the weather and the working day plots, we see that the plots are non-linear because these variables are categorical. For the atemp plot, we see a positive linear relationship, which means as the temperature increases, more people will go out biking. Based on the results from the plots, we see that a tree-based regression using count as the dependent variable and weather, working day, and atemp as our independent variables is appropriate because we can easily split the data. Since atemp is relatively linear, we will use the Gini coefficient to help split the data into separate regions recursively. Additionally, there are four categories for the weather variable, but from the weather plot, we see that there are no days with category four weather (i.e., heavy rain, ice pallets, thunderstorms, mist, fog, or snow). Therefore, when conducting our analysis, we will only be using the other three weather categories. 
@@ -91,4 +93,17 @@ classes=ifelse(predictedProbs>0.50,1,0)
 
 GINI = mean(classes)*(1-mean(classes))
 GINI
+```
+#Poisson Method
+```{r}
+data$workingday <- as.factor(data$workingday) #changes from integer to categorical
+data$weathersit <- as.factor(data$weathersit) #changes from integer to categorical
+
+pois <- glm(cnt ~ workingday + weathersit + atemp, family = poisson(link = "log"), data = data)
+summary(pois)
+exp(pois$coefficients)
+
+quasipois <- glm(cnt ~ workingday + weathersit + atemp, family = quasipoisson (link = "log"), data = data)
+summary(quasipois)
+exp(quasipois$coefficients)
 ```
