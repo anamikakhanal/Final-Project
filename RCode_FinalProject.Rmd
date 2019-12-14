@@ -9,7 +9,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(readr)
+library (dplyr)
+library (readr)
+library (rpart)
+library (rpart.plot)
 data<-read_csv("day.csv")
 ```
 
@@ -30,21 +33,44 @@ par(mfrow = c(1,1))
 plot(data$atemp, data$cnt, xlab = "Normalized Feeling Temperature", ylab = "Total Bike Rentals", main = "Scatter Plot of Normalized Feeling Temperature \n vs. Total Bike Rentals")
 ```
 
+```{r}
+par(mfrow = c(1,2))
+boxplot(casual ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Casual Bike Rentals", main = "Box Plot of Weather \n vs. Casual Bike Rentals")
+boxplot(casual ~ workingday, data = data, xlab = "Workingday", ylab = "Total Casual Bike Rentals", main = "Box Plot of Workingday \n vs. Casual Bike Rentals")
+par(mfrow = c(1,1))
+plot(data$atemp, data$casual, xlab = "Normalized Feeling Temperature", ylab = "Total Casual Bike Rentals", main = "Scatter Plot of Normalized Feeling Temperature \n vs. Casual Bike Rentals")
+```
+
+```{r}
+par(mfrow = c(1,2))
+boxplot(registered ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Registered Bike Rentals", main = "Box Plot of Weather \n vs. Registered Bike Rentals")
+boxplot(registered ~ workingday, data = data, xlab = "Workingday", ylab = "Total Registered Bike Rentals", main = "Box Plot of Workingday \n vs. Registered Bike Rentals")
+par(mfrow = c(1,1))
+plot(data$atemp, data$casual, xlab = "Normalized Feeling Temperature", ylab = "Total Registered Bike Rentals", main = "Scatter Plot of Normalized Feeling Temperature \n vs. Registered Bike Rentals")
+```
+
 For the weather and the working day plots, we see that the plots are non-linear because these variables are categorical. For the atemp plot, we see a positive linear relationship, which means as the temperature increases, more people will go out biking. Based on the results from the plots, we see that a tree-based regression using count as the dependent variable and weather, working day, and atemp as our independent variables is appropriate because we can easily split the data. Since atemp is relatively linear, we will use the Gini coefficient to help split the data into separate regions recursively. Additionally, there are four categories for the weather variable, but from the weather plot, we see that there are no days with category four weather (i.e., heavy rain, ice pallets, thunderstorms, mist, fog, or snow). Therefore, when conducting our analysis, we will only be using the other three weather categories. 
 
-#Relatively Advanced Method From Class (Tree-Based Regression)
+
+##Relatively Advanced Method From Class (Tree-Based Regression)
+
+#Tree Based Regression for Total 
 ```{r}
 #Recursive Binary Splitting
 options(repr.plot.width=20,repr.plot.height=20)
 
-library(rpart)
-fit <- rpart(cnt~atemp + workingday + weathersit, method="anova", data=data)
+data$workingday <- as.factor(data$workingday) #changes from integer to categorical
+data$weathersit <- as.factor(data$weathersit) #changes from integer to categorical
 
-plot(fit, uniform=TRUE,
-   main="Regression Tree for Bike Rentals")
-text(fit, use.n=TRUE, all=TRUE, cex=0.9)
+count.tree <- rpart(cnt~atemp + workingday + weathersit, method="anova", data=data)
+
+rpart.plot(count.tree, uniform = TRUE)
+title("Regression Tree for Total Number of Bike Renters", cex = 0.5)
+
+summary(count.tree)
 ```
 
+#Pruned Tree for Total Bike Rentals
 ```{r}
 #Complexity Pruning
 N = length(data)
@@ -67,7 +93,7 @@ for (ALPHA in ALPHAs){
         smallerTree = prune(BigTree, cp = ALPHA)
 
         predictions = predict(smallerTree, testingData)
-        MSEs[k] = t(testingData$cnt - predictions)%*%(testingData$cnt - predictions)
+        MSEs[k] = t(testingData$cnt - predictions)%*%(testingData$cnt - predictions)/nrow(testingData)
     }
     AllCVs[i] = mean(MSEs)
     i=i+1
@@ -75,35 +101,153 @@ for (ALPHA in ALPHAs){
 
 plot(ALPHAs,AllCVs, xlim=c(0.25,0.01) )
 lines(ALPHAs,AllCVs)
-table(ALPHAs, AllCVs)
 
 #Pruned Tree
-pfit<- prune(fit, cp=0.01) # from cptable   
+prune.total<- prune(count.tree, cp=0.03) # from cptable   
 
 # plot the pruned tree
-plot(pfit, uniform=TRUE,
-   main="Pruned Regression Tree for Bike Rentals")
-text(pfit, use.n=TRUE, all=TRUE, cex=.8)
+rpart.plot(prune.total, uniform=TRUE)
+title("Pruned Regression Tree for Total Bike Rentals")
 ```
 
+#Tree-Based Regression for Registered Bikers
 ```{r}
-#Gini Coefficient
-predictedProbs = predict(fit,data)
-classes=ifelse(predictedProbs>0.50,1,0)
+#Recursive Binary Splitting
+registered.tree <- rpart(registered~atemp + workingday + weathersit, method="anova", data=data)
 
-GINI = mean(classes)*(1-mean(classes))
-GINI
+rpart.plot(registered.tree, uniform =TRUE)
+title("Regression Tree for Registered Bikers")
+
+summary(registered.tree)
 ```
-#Poisson Method
+#Pruned Tree for Registered Bikers
 ```{r}
-data$workingday <- as.factor(data$workingday) #changes from integer to categorical
-data$weathersit <- as.factor(data$weathersit) #changes from integer to categorical
+#Complexity Pruning
+N = length(data)
+K = 10
+ALPHAs= seq(0.25,0.01,-0.01)
+# split into K folds
+Kfolds = split(data,1:K)
 
-pois <- glm(cnt ~ workingday + weathersit + atemp, family = poisson(link = "log"), data = data)
-summary(pois)
-exp(pois$coefficients)
+AllCVs = rep(0,length(ALPHAs))
 
-quasipois <- glm(cnt ~ workingday + weathersit + atemp, family = quasipoisson (link = "log"), data = data)
-summary(quasipois)
-exp(quasipois$coefficients)
+i=1
+for (ALPHA in ALPHAs){
+    MSEs = rep(0,K)
+    for(k in 1:K){
+        trainingIndices = setdiff(1:K,k)    
+        trainingData = do.call(rbind,Kfolds[trainingIndices])
+        testingData  = Kfolds[[k]] 
+
+        BigTree <- rpart(registered~atemp + workingday + weathersit, method="anova", data=trainingData)
+        smallerTree = prune(BigTree, cp = ALPHA)
+
+        predictions = predict(smallerTree, testingData)
+        MSEs[k] = t(testingData$cnt - predictions)%*%(testingData$cnt - predictions)/nrow(testingData)
+    }
+    AllCVs[i] = mean(MSEs)
+    i=i+1
+}
+
+plot(ALPHAs,AllCVs, xlim=c(0.25,0.01) )
+lines(ALPHAs,AllCVs)
+
+#Pruned Tree
+prune.registered <- prune(registered.tree, cp=0.05)# from cp graph   
+ 
+# plot the pruned tree
+rpart.plot(prune.registered, uniform=TRUE)
+title("Regression Tree for Pruned Tree")
+```
+#Tree-Based Regression for Casual Bikers
+```{r}
+#Recursive Binary Splitting
+casual.tree <- rpart(casual~atemp + workingday + weathersit, method="anova", data=data)
+
+rpart.plot(casual.tree, uniform=TRUE)
+title("Regression Tree for Casual Bikers")
+
+summary(casual.tree)
+```
+
+#Pruned Tree for Casual Bikers
+```{r}
+#Complexity Pruning
+N = length(data)
+K = 10
+ALPHAs= seq(0.25,0.01,-0.01)
+# split into K folds
+Kfolds = split(data,1:K)
+
+AllCVs = rep(0,length(ALPHAs))
+
+i=1
+for (ALPHA in ALPHAs){
+    MSEs = rep(0,K)
+    for(k in 1:K){
+        trainingIndices = setdiff(1:K,k)    
+        trainingData = do.call(rbind,Kfolds[trainingIndices])
+        testingData  = Kfolds[[k]] 
+
+        BigTree <- rpart(registered~atemp + workingday + weathersit, method="anova", data=trainingData)
+        smallerTree = prune(BigTree, cp = ALPHA)
+
+        predictions = predict(smallerTree, testingData)
+        MSEs[k] = t(testingData$cnt - predictions)%*%(testingData$cnt - predictions)/nrow(testingData)
+    }
+    AllCVs[i] = mean(MSEs)
+    i=i+1
+}
+
+plot(ALPHAs,AllCVs, xlim=c(0.25,0.01) )
+lines(ALPHAs,AllCVs)
+
+#Pruned Tree
+prune.casual <- prune(casual.tree, cp=0.05)# from cp graph   
+
+# plot the pruned tree
+rpart.plot(prune.casual, uniform=TRUE)
+title("Regression Tree for Pruned Tree")
+```
+
+##Out-of-Class Advanced Method
+
+#Poisson Regression for Total Bike Rentals
+```{r}
+count.pois <- glm(cnt ~ workingday + weathersit + atemp, family = poisson(link = "log"), data = data)
+summary(count.pois)
+exp(count.pois$coefficients)
+```
+
+#Calculation of Overdispersion for Total Bike Rentals
+```{r}
+count.quasi <- glm(cnt ~ workingday + weathersit + atemp, family = quasipoisson (link = "log"), data = data)
+summary(count.quasi)
+```
+
+#Poisson Regression for Registered Bikers
+```{r}
+registered.pois <- glm(registered ~ workingday + weathersit + atemp, family = poisson(link = "log"), data = data)
+summary(registered.pois)
+exp(registered.pois$coefficients)
+```
+
+#Calculaiton of Overdispersion for Registered Bikers
+```{r}
+registered.quasi <- glm(registered ~ workingday + weathersit + atemp, family = quasipoisson (link = "log"), data = data)
+summary(registered.quasi)
+exp(registered.quasi$coefficients)
+```
+
+#Poisson Regression for Casual Bikers
+```{r}
+casual.poisson <- glm(casual ~ workingday + weathersit + atemp, family = poisson(link = "log"), data = data)
+summary(casual.poisson)
+exp(casual.poisson$coefficients)
+```
+#Calculation of Overdispersion for Casual Bikers
+```{r}
+casual.quasi <- glm(casual ~ workingday + weathersit + atemp, family = quasipoisson (link = "log"), data = data)
+summary(casual.quasi)
+exp(casual.quasi$coefficients)
 ```
