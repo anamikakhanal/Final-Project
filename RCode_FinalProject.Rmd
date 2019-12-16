@@ -1,6 +1,6 @@
 ---
-title: "Final Project"
-author: "Stephanie Spitzer, Anamika Khanal, and Susan Khan"
+title: "DC Bike Sharing Analysis"
+author: "Stephanie Spitzer, Anamika Kakhanal, and Susan Khan"
 output: pdf_document
 ---
 
@@ -24,29 +24,29 @@ sum(is.na(data$weathersit))
 ```
 From the three lines of codes above, we see that for each variable we are interested in, there is no missing data. 
 
-#Initial Plots
+##Exploratory Analysis
+
+#Workingday Box Plots
 ```{r}
-par(mfrow = c(1,2))
-boxplot(cnt ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Bike Rentals", main = "Box Plot of Weather \n vs. Total Bike Rentals")
+par(mfrow = c(1,3))
 boxplot(cnt ~ workingday, data = data, xlab = "Workingday", ylab = "Total Bike Rentals", main = "Box Plot of Workingday \n vs. Total Bike Rentals")
-par(mfrow = c(1,1))
-plot(data$atemp, data$cnt, xlab = "Normalized Feeling Temperature", ylab = "Total Bike Rentals", main = "Scatter Plot of Normalized Feeling Temperature \n vs. Total Bike Rentals")
+boxplot(casual ~ workingday, data = data, xlab = "Workingday", ylab = "Casual Bike Rentals", main = "Box Plot of Workingday \n vs. Casual Bike Rentals")
+boxplot(registered ~ workingday, data = data, xlab = "Workingday", ylab = "Registered Bike Rentals", main = "Box Plot of Workingday \n vs. Registered Bike Rentals")
 ```
 
+#Weather Box Plots
 ```{r}
-par(mfrow = c(1,2))
+par(mfrow = c(1,3))
+boxplot(cnt ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Bike Rentals", main = "Box Plot of Weather \n vs. Total Bike Rentals")
 boxplot(casual ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Casual Bike Rentals", main = "Box Plot of Weather \n vs. Casual Bike Rentals")
-boxplot(casual ~ workingday, data = data, xlab = "Workingday", ylab = "Total Casual Bike Rentals", main = "Box Plot of Workingday \n vs. Casual Bike Rentals")
-par(mfrow = c(1,1))
-plot(data$atemp, data$casual, xlab = "Normalized Feeling Temperature", ylab = "Total Casual Bike Rentals", main = "Scatter Plot of Normalized Feeling Temperature \n vs. Casual Bike Rentals")
+boxplot(registered ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Registered Bike Rentals", main = "Box Plot of Weather \n vs. Registered Bike Rentals")
 ```
 
 ```{r}
-par(mfrow = c(1,2))
-boxplot(registered ~ weathersit, data = data, xlab = "Weather Category", ylab = "Total Registered Bike Rentals", main = "Box Plot of Weather \n vs. Registered Bike Rentals")
-boxplot(registered ~ workingday, data = data, xlab = "Workingday", ylab = "Total Registered Bike Rentals", main = "Box Plot of Workingday \n vs. Registered Bike Rentals")
-par(mfrow = c(1,1))
-plot(data$atemp, data$casual, xlab = "Normalized Feeling Temperature", ylab = "Total Registered Bike Rentals", main = "Scatter Plot of Normalized Feeling Temperature \n vs. Registered Bike Rentals")
+par(mfrow = c(2, 2))
+plot(data$atemp, data$cnt, xlab = "Normalized Feeling Temperature", ylab = "Total Bike Rentals", main = "Normalized Feeling Temperature \n vs. Total Bike Rentals")
+plot(data$atemp, data$casual, xlab = "Normalized Feeling Temperature", ylab = "Total Casual Bike Rentals", main = "Normalized Feeling Temperature \n vs. Casual Bike Rentals")
+plot(data$atemp, data$registered, xlab = "Normalized Feeling Temperature", ylab = "Total Registered Bike Rentals", main = "Normalized Feeling Temperature \n vs. Registered Bike Rentals")
 ```
 
 For the weather and the working day plots, we see that the plots are non-linear because these variables are categorical. For the atemp plot, we see a positive linear relationship, which means as the temperature increases, more people will go out biking. Based on the results from the plots, we see that a tree-based regression using count as the dependent variable and weather, working day, and atemp as our independent variables is appropriate because we can easily split the data. Since atemp is relatively linear, we will use the Gini coefficient to help split the data into separate regions recursively. Additionally, there are four categories for the weather variable, but from the weather plot, we see that there are no days with category four weather (i.e., heavy rain, ice pallets, thunderstorms, mist, fog, or snow). Therefore, when conducting our analysis, we will only be using the other three weather categories. 
@@ -236,7 +236,6 @@ exp(registered.pois$coefficients)
 ```{r}
 registered.quasi <- glm(registered ~ workingday + weathersit + atemp, family = quasipoisson (link = "log"), data = data)
 summary(registered.quasi)
-exp(registered.quasi$coefficients)
 ```
 
 #Poisson Regression for Casual Bikers
@@ -249,5 +248,4 @@ exp(casual.poisson$coefficients)
 ```{r}
 casual.quasi <- glm(casual ~ workingday + weathersit + atemp, family = quasipoisson (link = "log"), data = data)
 summary(casual.quasi)
-exp(casual.quasi$coefficients)
 ```
